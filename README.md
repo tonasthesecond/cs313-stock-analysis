@@ -44,7 +44,9 @@ Open `240069_project_notebook.ipynb` in Colab and run all cells:
 Runtime → Run all
 ```
 
-The setup cell clones this repo to `/content/cs313-stock-analysis` automatically if it isn't already there, and sets all paths relative to it. No Drive mounting needed.
+The setup cell clones this repo automatically and sets all paths relative to it. No Drive mounting needed. Pre-trained models load from `models/` so nothing retrains unless you delete the files.
+
+Once the tunnel cell prints a `trycloudflare.com` URL (takes ~10–15s), open it in your browser. If the tunnel cell fails on first try, just rerun it — Cloudflare's free tier is occasionally flaky.
 
 ### Local
 
@@ -79,11 +81,9 @@ Each section has a dedicated settings cell you can run independently:
 
 ---
 
-## Model training
+## Models
 
-`train_or_load_model` skips training and loads from disk if a `.keras` file already exists. To retrain a model, delete its file from `models/` and re-run the cell.
-
-Models are named predictably:
+Pre-trained `.keras` files are committed to `models/` — running the notebook loads them directly without retraining. If you want to retrain from scratch, delete the relevant file(s) from `models/` and re-run the cell; `train_or_load_model` will train and save a new one automatically.
 
 ```
 models/
@@ -108,11 +108,9 @@ models/
 
 **From the notebook (Colab):**
 
-Run these cells in section 5 in order:
-1. `verify stock_api.py` — confirms the file is present
-2. `install API dependencies` — installs fastapi and uvicorn
-3. `launch server` — starts uvicorn at `localhost:8000` in a background thread
-4. `launch cloudflare tunnel` — exposes the server publicly, prints the URL
+`Runtime → Run all` handles everything. The tunnel cell polls until the URL appears and prints it. Open that URL in your browser — the prediction UI is at `/`.
+
+If the tunnel cell errors on the first run, rerun just that cell.
 
 **Standalone (local or any server):**
 

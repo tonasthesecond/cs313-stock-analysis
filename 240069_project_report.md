@@ -144,7 +144,7 @@ The same filtering criteria from Task 2 apply across the full Vietnamese univers
 
 ### Task 4.1 — Profitable Stock Selection
 
-A separate v2 CNN-LSTM model is trained per company using the same architecture and pipeline from Task 2. For each trained model, a predicted return is computed from the final 20-day window of available historical data:
+A separate v2 CNN-LSTM model is trained per company using the same architecture and pipeline from Task 2. Pre-trained models for all filtered companies are committed to the `models/` directory in the repository; the notebook loads them directly without retraining. To retrain any model, delete the corresponding `task4_<ticker>.keras` file — `train_or_load_model` will train and save a new one automatically on the next run.
 
 ```
 predicted_return = (predicted_close − last_actual_close) / last_actual_close
@@ -198,47 +198,17 @@ The trained portfolio models are exposed via a FastAPI application (`stock_api.p
 
 **How to start the API server:**
 
-Execute the following cells in order inside the Colab notebook:
+The server launches as part of the normal notebook run. Open the notebook in Colab and select `Runtime → Run all`. The setup cell clones the repository (including pre-trained models), the server cell starts uvicorn in a background thread, and the tunnel cell polls until a `trycloudflare.com` URL appears — typically within 15 seconds. That URL is the live public endpoint.
 
-1. Mount Google Drive and confirm `MODEL_DIR` and `VN_DATA_DIR` point to the correct folders.
-2. Install dependencies:
-   ```bash
-   pip install fastapi uvicorn pyngrok
-   ```
-3. Write `stock_api.py` to disk by running the code-generation cell in the notebook.
-4. Start the server in a background thread:
-   ```python
-   import subprocess, threading, time
+If the tunnel cell fails on the first attempt, rerun it in isolation. Cloudflare's free accountless tunnels are occasionally unavailable; a second attempt is almost always sufficient.
 
-   def run():
-       proc = subprocess.Popen(
-           ['uvicorn', 'stock_api:app', '--host', '0.0.0.0', '--port', '8000'],
-           stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-       )
-       for line in proc.stdout:
-           print(line.decode(), end='')
+To run the server outside of Colab:
 
-   threading.Thread(target=run, daemon=True).start()
-   time.sleep(5)
-   ```
-5. Start the Cloudflare tunnel:
-   ```bash
-   wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
-   chmod +x cloudflared
-   ```
-   ```python
-   import subprocess, time, re
-
-   subprocess.Popen(
-       ['./cloudflared', 'tunnel', '--url', 'http://localhost:8000'],
-       stdout=open('/tmp/cf.log', 'w'), stderr=subprocess.STDOUT
-   )
-   time.sleep(6)
-   public_url = re.search(r'https://\S+\.trycloudflare\.com', open('/tmp/cf.log').read()).group()
-   print(f'tunnel: {public_url}')
-   ```
-
-The server is now reachable at the printed `*.trycloudflare.com` URL from any browser or HTTP client.
+```bash
+cd cs313-stock-analysis
+pip install fastapi uvicorn
+uvicorn stock_api:app --host 0.0.0.0 --port 8000
+```
 
 **How to send a prediction request:**
 
@@ -289,7 +259,7 @@ The FastAPI application serves a full HTML/CSS/JavaScript frontend directly at `
 
 **How to start the web interface:**
 
-No additional setup beyond the server startup steps above is required. Once the server is running and the Cloudflare tunnel is active, navigate to the tunnel URL in any browser. The frontend loads automatically.
+No additional setup is required beyond running the notebook. The frontend is served directly from the FastAPI application at `GET /` — once the tunnel URL is printed, navigating to it in any browser loads the interface immediately.
 
 **How the interface calls the API:**
 
@@ -323,6 +293,6 @@ Error states — network failure, ticker not found (404), or inference failure �
 
 **Risk management.** Combining volatility and maximum drawdown into a percentile-based exclusion filter produced a transparent, data-driven approach to separating safe from risky candidates. The percentile threshold is adjustable to suit different portfolio risk mandates.
 
-**Deployment.** FastAPI with an embedded HTML frontend and a Cloudflare tunnel delivers a complete REST API and browser-accessible SaaS interface from within the Colab environment, without any cloud infrastructure. The service is request-stateless, with model weights loaded from disk at startup and cached in memory for the session.
+**Deployment.** FastAPI with an embedded HTML frontend and a Cloudflare tunnel delivers a complete REST API and browser-accessible SaaS interface from within the Colab environment. Pre-trained models are committed to the repository so the full pipeline — clone, run all, open URL — works without any retraining. The service is request-stateless, with model weights loaded from disk at startup and cached in memory for the session.
 
 The most important methodological principle throughout: strict respect for temporal ordering. No shuffle, no look-ahead normalisation, no random k-fold. Correct data pipeline design is more consequential for result validity than any architectural choice.
